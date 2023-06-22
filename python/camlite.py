@@ -7,8 +7,6 @@ from io_ import *
 from simulation import *
 from assignment import trafficAssignment
 
-# todo: load node-based demand but keep zone information
-
 
 def initializeEvn(net_, demands_, signal_manager_, args_):
     print('Initializing environment...')

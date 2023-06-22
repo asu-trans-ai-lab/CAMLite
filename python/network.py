@@ -19,8 +19,6 @@ class MesoNode:
         self.y = 0.0
         self.m_outgoing_link_list = []
         self.m_incoming_link_list = []
-        self.outgoing_link_list = []
-        self.incoming_link_list = []
 
 
 class MesoLink:
@@ -30,8 +28,6 @@ class MesoLink:
         self.link_seq_no = 0
         self.from_node_id = 0
         self.to_node_id = 0
-        self.from_node = None
-        self.to_node = None
         self.length = 0.0
         self.number_of_lanes = 0
         self.speed_limit = 0.0
@@ -70,15 +66,6 @@ class MesoLink:
         self.td_speed_time_list = []
         self.td_speed_value_list = []
 
-        self.travel_cell_length = None
-        self.change_cell_length = None
-        self.accessible_nodes_dict = {}
-        self.lane_nodes_dict = {}
-
-    @property
-    def travel_change_cell_length_difference(self):
-        return None if self.travel_cell_length is None or self.change_cell_length is None else self.change_cell_length - self.travel_cell_length
-
     def CalculateBPRFunctionAndCost(self):
         self.travel_time = self.free_flow_travel_time_in_min * (1 + self.BPR_alpha * pow(self.flow_volume / self.link_capacity, self.BPR_beta))
         speed = self.length / 1000 / self.travel_time * 60
@@ -115,24 +102,9 @@ class MicroNode:
         self.y = 0.0
         self.meso_link_id = 0
         self.lane_no = 0
-        self.m_outgoing_link_keep = None
-        self.m_outgoing_link_change_list = []
         self.m_outgoing_link_list = []
         self.m_incoming_link_list = []
-        self.outgoing_link_list = []
-        self.incoming_link_list = []
         self.available_sim_interval = 0
-
-        self.outgoing_mesolinks = set()
-
-    @property
-    def downstream_mesolinks(self):
-        if self.m_outgoing_link_keep is None:
-            return set()
-        elif self.outgoing_mesolinks:
-            return self.outgoing_mesolinks
-        else:
-            return self.m_outgoing_link_keep.to_node.downstream_mesolinks
 
 
 class MicroLink:
@@ -141,8 +113,6 @@ class MicroLink:
         self.link_seq_no = 0
         self.from_node_id = 0
         self.to_node_id = 0
-        self.from_node = None
-        self.to_node = None
         self.meso_link = None
         self.lane_no = 0
         self.length = 0.0
@@ -216,33 +186,6 @@ class Network:
 
             mesolink.micro_incoming_node_id_list = list(potential_micro_incoming_node_id_set - potential_micro_outgoing_node_id_set)
             mesolink.micro_outgoing_node_id_list = list(potential_micro_outgoing_node_id_set - potential_micro_incoming_node_id_set)
-
-            # for micro_node_id in mesolink.micro_outgoing_node_id_list:
-            #     micronode = self.micro_node_list[self.micro_node_id_to_seq_no_dict[micro_node_id]]
-            #     for outgoing_micro_link_id in micronode.m_outgoing_link_list:
-            #         outgoing_microlink = self.micro_link_list[self.micro_link_id_to_seq_no_dict[outgoing_micro_link_id]]
-            #         micronode.outgoing_mesolinks.add(outgoing_microlink.meso_link)
-
-        for mesolink in self.meso_link_list:
-            for downstream_mesolink in mesolink.to_node.outgoing_link_list:
-                mesolink.accessible_nodes_dict[downstream_mesolink] = set()
-                accessible_nodes_temp = set([self.micro_node_list[self.micro_node_id_to_seq_no_dict[node_id]] for node_id in mesolink.micro_outgoing_node_id_list if node_id in downstream_mesolink.micro_incoming_node_id_list])
-                while accessible_nodes_temp:
-                    node = accessible_nodes_temp.pop()
-                    mesolink.accessible_nodes_dict[downstream_mesolink].add(node)
-                    for incoming_microlink in node.incoming_link_list:
-                        if incoming_microlink.meso_link is mesolink:
-                            accessible_nodes_temp.add(incoming_microlink.from_node)
-
-                mesolink.lane_nodes_dict[downstream_mesolink] = set()
-                lane_nodes_temp = set([self.micro_node_list[self.micro_node_id_to_seq_no_dict[node_id]] for node_id in mesolink.micro_outgoing_node_id_list if node_id in downstream_mesolink.micro_incoming_node_id_list])
-                while lane_nodes_temp:
-                    node = lane_nodes_temp.pop()
-                    mesolink.lane_nodes_dict[downstream_mesolink].add(node)
-                    for incoming_microlink in node.incoming_link_list:
-                        if incoming_microlink.cell_type == 1 and incoming_microlink.meso_link is mesolink:
-                            lane_nodes_temp.add(incoming_microlink.from_node)
-
         # control link identification
         for mesolink in self.meso_link_list:
             for incoming_node_id in mesolink.micro_incoming_node_id_list:

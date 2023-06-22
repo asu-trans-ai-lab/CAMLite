@@ -67,8 +67,6 @@ class Agent:
         self.number_of_seconds_per_interval = 0
         self.Simulation_StartTimeInMin = 0.0
 
-        self.next_outgoing_link = None
-
         self.note = ''
 
     @property
@@ -115,8 +113,7 @@ class Agent:
         micro_path_node_id_list_str = list(map(str, self.micro_path_node_id_list))
         self.micro_path_node_str = ';'.join(micro_path_node_id_list_str)
 
-        micro_path_time_list_str = list(map(lambda x: str(round(x * self.number_of_seconds_per_interval / 60 + self.Simulation_StartTimeInMin, 4)), self.m_Veh_LinkArrivalTime_in_simu_interval))
-        # micro_path_time_list_str = list(map(lambda x: str(round(x * self.number_of_seconds_per_interval / 60 + self.Simulation_StartTimeInMin, 4)), self.m_Veh_LinkDepartureTime_in_simu_interval))
+        micro_path_time_list_str = list(map(lambda x: str(round(x * self.number_of_seconds_per_interval / 60 + self.Simulation_StartTimeInMin, 3)), self.m_Veh_LinkArrivalTime_in_simu_interval))
         self.micro_path_time_str = ';'.join(micro_path_time_list_str)
 
         formatted_time_list = []

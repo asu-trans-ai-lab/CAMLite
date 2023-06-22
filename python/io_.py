@@ -15,15 +15,10 @@ import re
 
 
 _working_directory = ''
-_output_filename = ''
-_sim_step = 0.1
 
 
 def load_args():
     global _working_directory
-    global _output_filename
-    global _sim_step
-
     print('Loading Simulation Settings...')
 
     parser = argparse.ArgumentParser(description='ParameterOptimizer')
@@ -43,10 +38,6 @@ def load_args():
     parser.add_argument('--headway', default=1.4, type=float,
                         help='Minimum time headway between vehicles. Default: 1.4s')
 
-    # --- Simulation settings ---
-    parser.add_argument('--output_filename', default='agent.csv', type=str,
-                        help='Output filename. Default: agent.csv')
-
     args = vars(parser.parse_args())
 
     print(f'  cwd: {args["cwd"]}')
@@ -55,11 +46,8 @@ def load_args():
     print(f'  sim_end_time: {args["sim_end_time"]}')
     print(f'  assignment_iters: {args["assignment_iters"]}')
     print(f'  headway: {args["headway"]}')
-    print(f'  output_filename: {args["output_filename"]}')
 
     _working_directory = args["cwd"]
-    _output_filename = args["output_filename"]
-    _sim_step = args["sim_step"]
     return args
 
 
@@ -107,7 +95,7 @@ def readInputData():
             mesolink.to_node_id = int(line['to_node_id'])
             mesolink.length = float(line['length'])
             mesolink.number_of_lanes = int(line['lanes'])
-            mesolink.speed_limit = float(line['free_speed'])
+            mesolink.speed_limit = float(line['free_speed']) * 0.83
             lane_cap = line['capacity']
             mesolink.lane_cap = float(lane_cap) if lane_cap else 1200
             mesolink.geometry = line['geometry']
@@ -115,12 +103,8 @@ def readInputData():
             mesolink.link_seq_no = i
             from_node = net.meso_node_list[net.meso_node_id_to_seq_no_dict[mesolink.from_node_id]]
             from_node.m_outgoing_link_list.append(mesolink.link_id)
-            from_node.outgoing_link_list.append(mesolink)
             to_node = net.meso_node_list[net.meso_node_id_to_seq_no_dict[mesolink.to_node_id]]
             to_node.m_incoming_link_list.append(mesolink.link_id)
-            to_node.incoming_link_list.append(mesolink)
-            mesolink.from_node = from_node
-            mesolink.to_node = to_node
 
             mesolink.setLinkKey()
             mesolink.initializeMicroNodeList()
@@ -165,35 +149,22 @@ def readInputData():
             microlink.meso_link = net.meso_link_list[net.meso_link_id_to_seq_no_dict[line['meso_link_id']]]
             microlink.cell_type = int(line['cell_type'])
             microlink.length = float(line['length'])
-            microlink.speed_limit = float(line['free_speed'])
+            microlink.speed_limit = float(line['free_speed']) * 0.83
             microlink.additional_cost = float(line['additional_cost'])
 
             microlink.link_seq_no = i
-            microlink.Initialization(_sim_step)
+            # microlink.Initialization()
 
             net.micro_link_list.append(microlink)
 
             from_node = net.micro_node_list[net.micro_node_id_to_seq_no_dict[microlink.from_node_id]]
-            microlink.from_node = from_node
             from_node.m_outgoing_link_list.append(microlink.link_id)
-            from_node.outgoing_link_list.append(microlink)
-            if microlink.cell_type == 1:
-                from_node.m_outgoing_link_keep = microlink
-            else:
-                from_node.m_outgoing_link_change_list.append(microlink)
             to_node = net.micro_node_list[net.micro_node_id_to_seq_no_dict[microlink.to_node_id]]
-            microlink.to_node = to_node
             to_node.m_incoming_link_list.append(microlink.link_id)
-            to_node.incoming_link_list.append(microlink)
 
             mesolink = microlink.meso_link
             mesolink.micro_link_list.append(microlink.link_id)
-            mesolink.graph.add_edge(microlink.to_node_id, microlink.from_node_id, weight=microlink.length)  # reverse link direction to reduce shortest path searching time
-            if microlink.cell_type == 1:
-                mesolink.travel_cell_length = microlink.length
-            else:
-                mesolink.change_cell_length = microlink.length
-
+            mesolink.graph.add_edge(microlink.to_node_id, microlink.from_node_id, weight=microlink.cost)  # reverse link direction to reduce shortest path searching time
             net.micro_link_id_to_seq_no_dict[microlink.link_id] = microlink.link_seq_no
 
     net.number_of_micro_links = len(net.micro_link_list)
@@ -231,12 +202,12 @@ def readInputData():
                                  'd_zone_id': line['d_zone_id'],
                                  'o_node_id': line['o_node_id'],
                                  'd_node_id': line['d_node_id'],
-                                 'volume': round(float(line['volume'])),
+                                 'volume': int(float(line['volume'])),
                                  'time_start': float(line['time_start']),
                                  'time_end': float(line['time_end']),
                                  'route': line['route']}
                 demand_record_list.append(demand_record)
-                total_demands += demand_record['volume']
+                total_demands += int(line['volume'])
 
         print(f'  demand: {total_demands} agents')
 
@@ -296,7 +267,7 @@ def readInputData():
 
 def outputResults(demands):
     print('Outputing Simulation Results...')
-    with open(os.path.join(_working_directory, _output_filename), 'w', newline='') as outfile:
+    with open(os.path.join(_working_directory, 'agent.csv'), 'w', newline='') as outfile:
         writer = csv.writer(outfile)
         writer.writerow(
             ['agent_id', 'o_zone_id', 'd_zone_id',
